@@ -1,0 +1,45 @@
+
+#macro ( associationTableName $associationTable)
+#set ($rn = ${associationTable.rightTable.associatedClass.name.toLowerCase()})
+#set ($ln = ${associationTable.leftTable.associatedClass.name.toLowerCase()})
+#set ($name = "${rn}_${ln}")
+${vh.limitLenght($name)}#end
+
+#macro( tableName $tableModel)
+${tableModel.associatedClass.name.toLowerCase()}_table#end
+
+#macro( relationColumns $tableModel)
+#set ($tmn = $tableModel.associatedClass.name)
+#set ($ft = $tmn)
+#foreach( $relation in $tableModel.relationship)
+#relationColumn($tableModel, $relation, $foreach.hasNext)
+#end
+#end
+
+
+#macro(relationColumn $tableModel, $relation, $hasNext)
+#set ($tt = $relation.toTable.associatedClass.name)
+#set ($ft = $relation.fromTable.associatedClass.name)
+#set ($tmn = $tableModel.associatedClass.name)
+#if ($relation.isManyToMany())
+'${relation.name.trim()}': relationship(${tt}, secondary=#associationTableName($relation.associationTable)_table)#if($hasNext),#end
+#elseif($relation.isOneToMany())
+'${relation.name}': relationship(${tt}, primaryjoin=${tt.toLowerCase()}_table.c.${ft.toLowerCase()}_${relation.name.toLowerCase().trim()}==${tmn.toLowerCase()}_table.c.id)#if($hasNext),#end
+#elseif($relation.isOneToOne())
+'${relation.name}': relationship(${tt}, uselist=False, backref='${relation.backrefName}', primaryjoin=${tt.toLowerCase()}_table.c.${ft.toLowerCase()}_${relation.name.toLowerCase().trim()}_id==${tmn.toLowerCase()}_table.c.id)#if($hasNext),#end
+#end
+#if($tt == $tmn)
+, remote_side=[${tmn.toLowerCase()}_table.c.${tmn.toLowerCase()}_id]
+#end
+#end
+
+
+#macro( inheritedClasses $tableModel)
+#set ($tln = ${tableModel.associatedClass.name.toLowerCase()})
+#if($tableModel.inherited.size() > 0)
+	#foreach( $parent in $tableModel.inherited)
+		#set ($pn = ${parent.associatedClass.name})
+		, polymorphic_on=${tln}_table.c.t_type, inherits=${pn}, polymorphic_identity='${tln}'#break#end
+#else	
+#end
+#end

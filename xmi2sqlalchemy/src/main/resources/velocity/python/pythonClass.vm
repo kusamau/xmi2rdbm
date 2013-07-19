@@ -1,0 +1,261 @@
+##########################################################################
+## pythonClass.vm
+## The form expects the following context attributes
+## classModel - an instance of PythonClassModel class
+## imports    - a Map<String, Set<String>> defining the modules to import
+## stereotype - an instance of UMLClass representing the classModel
+## attributes - a Set<PythonAttributeModel>
+##########################################################################
+
+#set ($object = "object")
+#set ($newline = '\n')
+#macro( superclass $cm, $stereotype)
+#set ($superclasses = $cm.parents)
+#if($superclasses.size() == 0 && !$stereotype)
+$object#elseif($stereotype && $superclasses.size() == 0)
+${stereotype.name}#elseif($superclasses.size() > 0)
+#foreach( $classModel in $vh.getOrderedParents($cm))
+${vh.getMappedClass(${classModel.associatedClass})}#if($foreach.hasNext),#end
+#end
+#end
+#end
+
+#macro( asEnumeration $asEnumeration)
+#set ($index = 0)	
+#foreach($item in $asEnumeration.simpleKeyValues)	
+#if(${vh.isValidPythonName($item.key)})	
+${tab}en_${vh.transformToPythonName($item.key)} = "${item.value}"
+#else
+#set ($index = $index + 1)	
+${tab}en_invalid_name_${index} = "${item.value}"
+#end
+#end
+#end
+
+#macro( asCodeList $asCodeList)
+#foreach($item in $asCodeList.simpleKeyValues)
+${tab}cl_${vh.transformToPythonName($item.key)} = "${item.value}" 
+#end
+#if ($asCodeList.simpleKeyValues.length() == 0):
+${tab}cl_no_keys = ""	
+#end	
+#end
+
+#macro( asUnion $classModel)
+${tab}types = {#unionDictionary($classModel.attributeModel)}
+#end
+
+#macro (unionDictionary $attributeModel)
+#foreach($item in $attributeModel)
+'${item.name}':${vh.getMappedClass(${item.associatedType.associatedClass})}#if($foreach.hasNext),#end  
+#end
+#end
+
+
+#macro( importing $toImport)
+#foreach( $key in $toImport.keySet())	
+from $key import #foreach( $item in $toImport.get($key)) $item#if($foreach.hasNext),#end #end
+
+#end
+#end
+
+#macro (getter $attr)
+#set ( $methodName = "$display.capitalize( $attr.name )")
+${tab}@property
+${tab}def ${attr.name}(self):	
+#if($attr.getParentName())
+${tab}${tab}return self._${attr.getParentName().toLowerCase()}.${attr.name}
+#elseif($attr.subTypes)
+#if($attr.hasMultiplicity())
+${tab}${tab}try:
+${tab}${tab}${tab}ret = []
+#foreach($type in $attr.subTypes)
+#set ( $assoClass = "$type.associatedClass.name.toLowerCase()")
+${tab}${tab}${tab}ret.extend(self._${attribute.name}_$assoClass)
+#end
+${tab}${tab}${tab}if not hasattr(self, '_${attr.name}'):
+${tab}${tab}${tab}${tab}self._${attr.name} = []
+${tab}${tab}${tab}if self._${attr.name} is not None:
+${tab}${tab}${tab}${tab}ret.extend(self._${attr.name})
+${tab}${tab}${tab}del self._${attr.name}[:]
+${tab}${tab}${tab}self._${attr.name}.extend(set(ret))
+${tab}${tab}except Exception as e:
+${tab}${tab}${tab}pass
+${tab}${tab}return self._${attr.name}
+#else
+#foreach($type in $attr.subTypes)
+#set ( $assoClass = "$type.associatedClass.name.toLowerCase()")
+${tab}${tab}if(has_value(self._${attribute.name}_$assoClass)):
+${tab}${tab}${tab}return self._${attribute.name}_$assoClass
+#end
+${tab}${tab}return #initAttributeLeft($attr)	
+#end	
+#end
+#end
+
+#macro(saSetter $type, $attr)
+#foreach($stype in $attr.subTypes)
+#if(!$stype.equals($type))
+${tab}${tab}${tab}self._${attr.name}_${stype.associatedClass.name.toLowerCase()} =#initAttributeLeft($stype)
+#end
+#end
+#end
+
+#macro(initAttributeLeft $attrL)
+#if($attrL.hasMultiplicity()) []
+#else None
+#end
+#end
+
+#macro (setter $attr)
+#if($attr.getParentName())
+${tab}@${attr.name}.setter
+${tab}def ${attr.name}(self, value):	
+${tab}${tab}${tab}self._${attr.getParentName().toLowerCase()}.${attr.name} = value
+#elseif($attr.subTypes && !$attr.hasMultiplicity())
+${tab}@${attr.name}.setter
+${tab}def ${attr.name}(self, value):	
+${tab}${tab}valueClass = "%s.%s" % (type(value).__module__,type(value).__name__)
+#foreach($type in $attr.subTypes)
+#set ( $assoClass = "$type.associatedClass.name")
+#set ( $assoClassL = "$type.associatedClass.name.toLowerCase()")
+${tab}${tab}if valueClass == "${vh.getMappedModule($type.associatedClass)}.${assoClass}":
+${tab}${tab}${tab}self._${attr.name}_${assoClassL} = value
+## Reinitializes all the other subTypes
+#saSetter($type, $attr)	
+#end
+#end	
+#end
+
+
+#macro ( synchronize $attributes, $parents)
+${tab}def synchronize(self):
+##if($parents)
+##foreach( $parent in $parents)
+##${tab}${tab}self._${parent.associatedClass.name.toLowerCase()}.synchronize() 	
+##end
+##end
+#foreach($attr in $attributes)
+#if(!$attr.getParentName() && $attr.hasMultiplicity() && $attr.subTypes)
+${tab}${tab}int_${attr.name} = self.${attr.name}	
+#foreach($type in $attr.subTypes)
+#set ( $assoClassL = "$type.associatedClass.name.toLowerCase()")
+${tab}${tab}del self._${attr.name}_${assoClassL}[:]
+#end
+#end
+#end
+#foreach($attr in $attributes)
+#if(!$attr.getParentName() && $attr.hasMultiplicity() && $attr.subTypes)
+${tab}${tab}for item in int_${attr.name}:	
+${tab}${tab}${tab}valueClass = "%s.%s" % (type(item).__module__,type(item).__name__)
+#foreach($type in $attr.subTypes)
+#set ( $assoClassL = "$type.associatedClass.name.toLowerCase()")
+${tab}${tab}${tab}if valueClass == "${vh.getMappedModule($type.associatedClass)}.${type.associatedClass.name}":
+${tab}${tab}${tab}${tab}self._${attr.name}_${assoClassL}.append(item)
+${tab}${tab}${tab}${tab}continue
+#end
+#end
+#end
+${tab}${tab}pass
+#end
+
+
+#macro ( dogettersetter $attributes)
+#foreach($attribute in $attributes)
+#if($attribute.getParentName() || $attribute.subTypes)
+#getter($attribute)
+
+#setter($attribute)	
+#end
+#end
+#end
+
+#macro ( enlistKeys $attributes)
+#foreach($attribute in $attributes)
+self.${attribute.name}#if($foreach.hasNext), #end
+#end
+#end
+
+#macro( subTypes $attribute)
+## Generates the hidden objects attributes used by the RDBM
+#if($attr.getParentName())
+#else
+#foreach($type in $attribute.subTypes)
+${tab}${tab}self._${attribute.name}_${type.associatedClass.name.toLowerCase()} =#initAttributeLeft($attribute)
+#end
+#end
+## Generates the hidden dummy object oriented instance of the attribute
+${tab}${tab}self._${attribute.name} =#initAttributeLeft($attribute)
+#end
+
+#macro( attributes $attributes, $parents)
+#if($parents)
+#foreach( $parent in $parents)
+${tab}${tab}self._${parent.associatedClass.name.toLowerCase()} = ${vh.getMappedClass($parent.associatedClass)}() 	
+#end
+#end
+
+#foreach($attribute in $attributes)
+#if($attribute.subTypes && !$attribute.getParentName())
+#subTypes($attribute)
+#else
+#if(($attribute.getParentName() && !$attribute.hasMultiplicity()) || !$attribute.getParentName())
+${tab}${tab}self.${attribute.name} =#initAttributeLeft($attribute)
+#end
+#end
+#end
+#end
+
+
+#importing($imports)
+from ascore.utils import has_value, collectionProofHash
+
+'''
+Created on $date
+
+@author: mnagni
+'''
+
+class ${classModel.associatedClass.name}(#superclass($classModel, $stereotype)):
+${tab}'''
+${tab}${tab}Represents a data entity defined in a UML diagram and supposed to 
+${tab}${tab}be persisted in a relational database. 
+ 
+${tab}${tab}This class has been genererated automatically using the Apache Velocity project.
+${tab}'''
+#if($classModel.isEnumeration())
+#asEnumeration($classModel)
+#elseif ($classModel.isCodeList())
+#asCodeList($classModel)
+#elseif ($classModel.isUnion())
+#asUnion($classModel) 
+#else
+${tab}'''
+${tab}${tab}Please note that any access to the inner attributes should be done using 
+${tab}${tab}the given get/set methods and NOT accessing them directly.
+${tab}'''
+${tab}def __init__(self):
+#end
+#if (!($classModel.isEnumeration() || $classModel.isCodeList() || $classModel.isUnion()))
+#attributes($attributes, $classModel.parents)
+${tab}${tab}super(${classModel.associatedClass.name}, self).__init__()
+#dogettersetter($attributes)
+
+#synchronize($attributes, $classModel.parents)
+
+${tab}def __key(self):
+${tab}${tab}return (#enlistKeys($attributes))
+
+${tab}def __eq__(self, y):
+${tab}${tab}if type(self) != type(y):
+${tab}${tab}${tab}return False
+${tab}${tab}'''
+${tab}${tab}Cannot compare classes which do not define a "__key" attribute 
+${tab}${tab}'''
+${tab}${tab}if hasattr(self, '_%s__key' % (type(self).__name__)) and hasattr(y, '_%s__key' % (type(y).__name__)):
+${tab}${tab}${tab}return self.__key() == y.__key()
+${tab}${tab}return id(self) == id(y)
+
+${tab}def __hash__(self):
+${tab}${tab}return collectionProofHash(self.__key())
+#end

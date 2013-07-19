@@ -1,0 +1,9 @@
+## association.vm
+#set ($rn = ${associationTable.rightTable.associatedClass.name.toLowerCase()})
+#set ($ln = ${associationTable.leftTable.associatedClass.name.toLowerCase()})
+#set ($totalName = "#associationTableName($associationTable)")
+
+${tab}${totalName}_table = Table('#associationTableName($associationTable)', metadata,
+${tab}${tab}Column('left_node_id', Integer, ForeignKey(${rn}_table.c.id)),
+${tab}${tab}Column('right_node_id', Integer, ForeignKey(${ln}_table.c.id))
+${tab})

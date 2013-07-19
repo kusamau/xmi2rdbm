@@ -1,0 +1,7 @@
+## nonSortableMapping_2.vm
+
+##Rememeber that I have arbitrarily removed the "identicalAttributes" macro (see mapping.vm for the original version)
+#if($tableModel.relationship.size() > 0)
+${tab}class_mapper(${tableModel.associatedClass.name}).add_properties({#relationColumns($tableModel)})
+#end
+

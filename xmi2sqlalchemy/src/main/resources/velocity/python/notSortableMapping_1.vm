@@ -1,0 +1,4 @@
+## notSortableMapping_1.vm
+mapper($tableModel.associatedClass.name, #tableName($tableModel), primary_key=[#tableName($tableModel).c.id])
+
+

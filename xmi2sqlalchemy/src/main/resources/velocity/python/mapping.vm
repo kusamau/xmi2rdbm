@@ -1,0 +1,13 @@
+## mapping.vm
+#macro( beforeInsertListener $tableModel)
+#set ($tm = $tableModel.associatedClass.name.toLowerCase())
+def ${tableModel.associatedClass.name}_before_insert_listener(mapper, connection, target):
+${tab}if (target.${tm}_id is None):
+${tab}${tab}target.${tm}_id = next_id(connection, '${tm}_id_seq')
+#end
+
+#if(!$tableModel.associatedClass.name.equals('EARootClass'))
+${tab}mapper($tableModel.associatedClass.name, #tableName($tableModel) 
+, properties  = {#relationColumns($tableModel)})
+
+#end

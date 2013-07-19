@@ -1,0 +1,57 @@
+##########################################################################
+## sqlAlchemyTables.vm
+## The form expects the following context attributes
+## tableModel - an instance of ClassModel class
+##########################################################################
+#macro(checkUseAlter $fk, $fkName, $relName)
+, use_alter=True, name='fk_${fkName}_${relName}'#end
+
+#macro( fk $foreignKey, $tableModel)
+#set ($fkName = ${foreignKey.tableModel.associatedClass.name.toLowerCase()})
+#set ($relName = ${foreignKey.parentAttributeName.toLowerCase().trim()})
+#if($foreignKey.associatedRelationship.isOneToOne() || !$foreignKey.associatedRelationship.useList)
+Column('${fkName}_${relName}_id', Integer, ForeignKey('${fkName}.id'#checkUseAlter($foreignKey, $fkName, $relName))),
+#else
+Column('${fkName}_${relName}', Integer, ForeignKey('${fkName}.id'#checkUseAlter($foreignKey, $fkName, $relName))),
+#end
+#end
+
+#macro( primaryKey $tableModel)
+#set ($tn = ${tableModel.associatedClass.name.toLowerCase()})
+${tab}Column('id', Integer, Sequence('${tn}_id_seq'), primary_key=True),
+#end
+
+#macro(checkNullable $simpleAttribute)
+#if($simpleAttribute.lowerBound != '0' && !$simpleAttribute.voidable)
+, nullable=False#else
+, nullable=True#end
+#end
+
+#macro( column $attribute)
+Column('${attribute.name}', ${vh.substituteDBType($attribute)} #checkNullable($attribute)),
+#end
+
+#macro( superColumn $tableModel)
+#foreach( $attribute in $tableModel.associatedClassModel.attributeModel)
+#if($attribute.subTypes)
+#foreach($sType in $attribute.subTypes)
+#set ($associatedCN = ${sType.associatedClass.name.toLowerCase().trim()})
+Column('_${attribute.name}_${associatedCN}_id', Integer, ForeignKey('${associatedCN}.id')),
+#end
+#end	
+#end
+#end
+
+#macro( table $tableModel)
+#set ($associatedCN = ${tableModel.associatedClass.name.toLowerCase()})
+${associatedCN}_table = Table('${associatedCN}', metadata,
+#primaryKey($tableModel)
+#foreach( $foreignKey in $tableModel.fk)
+#fk($foreignKey, $tableModel)
+#end
+#foreach( $attribute in $tableModel.attributeModel)
+#column($attribute)
+#end
+${tab}extend_existing=False,)
+#end
+${tab}#table($tableModel)

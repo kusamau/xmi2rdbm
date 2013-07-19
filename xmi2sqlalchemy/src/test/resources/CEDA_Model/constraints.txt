@@ -1,0 +1,9 @@
+MO_ObservationCollection:member:CEDA_Observation
+MO_ObservationCollection:phenomenonTime:TM_GeometricPrimitive
+MO_Project:observationCollection:CEDA_ObservationCollection
+MO_Observation:result:CEDA_Result
+MO_Observation:inSupportOf:CEDA_Project
+MO_Project:subProject:CEDA_Project
+OM_Observation:procedure:CEDA_Process
+OM_Observation:phenomenonTime:TM_GeometricPrimitive
+MO_ResponsiblePartyFunctionValue:CEDA_RoleValue

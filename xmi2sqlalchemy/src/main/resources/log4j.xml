@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+
+<!-- This is the configuration for LOG4J -->
+<!-- $Id: log4j.xml 10418 2009-11-09 16:18:59Z ixitar $ -->
+
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+    
+    <!-- Section: APPENDERS -->
+    
+    <!-- 
+         writes log messages to the console. It outputs file name,
+         method name and line number of the caller. This is slow,
+         so just use it for debugging. 
+    -->
+    <appender name="nmAppender" class="org.apache.log4j.ConsoleAppender">
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{HH:mm:ss,SSS} [%t] %-5p (%F [%M]:%L) - %m %n"/>
+        </layout>
+    </appender>
+     
+    
+    <!-- Section: CATEGORIES -->    
+    
+    <!--
+        Axis produces a large amount of debugging output if
+        priority is set to debug 
+    -->
+    <category name="ndg.services.newmoon" additivity="false">
+        <priority value="info"/>
+        <appender-ref ref="nmAppender"/>
+    </category>
+    
+    <category name="ndg.services.newmoon.velocity.python.GenerateTables" additivity="false">
+        <priority value="warn"/>
+        <appender-ref ref="nmAppender"/>
+    </category>
+    <!-- Section: ROOT logger -->
+    
+    <root>
+        <priority value="debug"/>
+    </root>
+    
+</log4j:configuration>
